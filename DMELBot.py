@@ -86,16 +86,21 @@ async def update_rankings(message):
         rankings += player[3]
         rankings += "    "
         rankings += player[6]
-        if player[2] in gold:
-            rankings += ":first_place:"
-        if player[2] in silver:
-            rankings += ":second_place:"
-        if player[2] in bronze:
-            rankings += ":third_place:"
-        if player[2] in paint:
-            rankings += ":art:"
-        if player[2] in sport:
-            rankings += ":raised_hands_tone1:"
+        for winner in gold:
+            if winner == player[2]:
+                rankings += ":first_place:"
+        for winner in silver:
+            if player[2] == winner:
+                rankings += ":second_place:"
+        for winner in bronze:
+            if player[2] == winner:
+                rankings += ":third_place:"
+        for winner in paint:
+            if player[2] == winner:
+                rankings += ":art:"
+        for winner in sport:
+            if player[2] == winner:
+                rankings += ":raised_hands_tone1:"
         rankings += "\n"
         if len(rankings) >= 1900:
             new_mes = await message.channel.send(rankings)
