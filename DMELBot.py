@@ -11,7 +11,6 @@ RANGE_NAME = "A7:G"
 SHEETKEY = ""
 DISCORDKEY = ""
 
-previous_ranking = []
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -66,8 +65,22 @@ async def find_rank(message):
 
 
 async def update_rankings(message):
-    for mes in previous_ranking:
-        await mes.delete()
+    channel = message.channel
+    filename = str(channel.id) + ".txt"
+    try:
+        f = open(filename, "r")
+        i = int(f.readline().strip())
+        for _ in range(i):
+            mes_id = f.readline().strip()
+            temp = await channel.fetch_message(int(mes_id))
+            await temp.delete()
+        f.close()
+    except IOError:
+        print("no such file yet")
+
+    sent_messages = []
+    # for mes in previous_ranking:
+    #     await mes.delete()
     await message.delete()
     gold = get_first_place()
     silver = get_second_place()
@@ -104,10 +117,15 @@ async def update_rankings(message):
         rankings += "\n"
         if len(rankings) >= 1900:
             new_mes = await message.channel.send(rankings)
-            previous_ranking.append(new_mes)
+            sent_messages.append(new_mes)
             rankings = ""
     new_mes = await message.channel.send(rankings)
-    previous_ranking.append(new_mes)
+    sent_messages.append(new_mes)
+    g = open(filename, "w")
+    g.write(str(len(sent_messages)) + "\n")
+    for mes in sent_messages:
+        g.write(str(mes.id) + "\n")
+    g.close()
 
 
 def get_list():
@@ -234,6 +252,7 @@ def read_keys(file):
     f = open(file, "r")
     SHEETKEY = f.readline().strip()
     DISCORDKEY = f.readline()
+    f.close()
 
 
 if __name__ == "__main__":
