@@ -27,24 +27,24 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith('$update'.casefold()):
-        print(message.channel.name)
-        print(message.content)
+
+    permissions = False
+    for role in message.author.roles:
+        if role.name == "Tournament Organiser" or role.name == "Admin":
+            permissions = True
+            break
+
+    if message.content.startswith('$update'.casefold()) & permissions:
         await update_rankings(message)
 
     if message.content.startswith('$ranking '.casefold()):
-        print(message.channel.name)
-        print(message.content)
         await find_rank(message)
 
     if message.content.startswith('$who_is '.casefold()):
-        print(message.channel.name)
-        print(message.content)
         await who_is(message)
 
 async def who_is(message):
     rank = message.content[8:]
-    print(rank)
     players = get_list()
     final = "The player(s) ranked " + rank + " are:\n"
     for player in players:
@@ -54,7 +54,6 @@ async def who_is(message):
 
 async def find_rank(message):
     name = message.content[9:]
-    print(name)
     players = get_list()
     for player in players:
         if player[2].casefold() == name.casefold():
