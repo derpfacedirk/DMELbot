@@ -266,11 +266,12 @@ def get_medals():
     medals = [[],[],[]]
 
     sheet = service.spreadsheets()
-    result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!H:AW11").execute())
+    result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!H15:AW21").execute())
     values = result.get("values", [])
-    i = 0
+    print (values)
     rank = 0
     for _ in values:
+        i=0
         for value in _:
             match i:
                 case 0:
