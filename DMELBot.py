@@ -118,12 +118,7 @@ async def update_rankings(message):
     #remove $update command
     await message.delete()
 
-    #get all players that won first place
-    gold = get_first_place()
-    #get all players that won second place
-    silver = get_second_place()
-    #get all players that won third place
-    bronze = get_third_place()
+    medals = get_medals()
     #get all players that won best painted
     paint = get_best_painted()
     #get all players that won most sporting
@@ -156,18 +151,15 @@ async def update_rankings(message):
         #add total tournaments to line
         rankings += player[6]
 
-        #add gold medals for tournament winners
-        for winner in gold:
-            if winner == player[2]:
+        for winner in medals[0]:
+            if player[2] == winner:
                 rankings += ":first_place:"
 
-        #add silver medals for second places in tournaments
-        for winner in silver:
+        for winner in medals[1]:
             if player[2] == winner:
                 rankings += ":second_place:"
 
-        #add bronze medals for third places in tournaments
-        for winner in bronze:
+        for winner in medals[2]:
             if player[2] == winner:
                 rankings += ":third_place:"
 
@@ -228,82 +220,6 @@ def get_list():
         exit()
 
 
-#get all players who came first in a tournament
-def get_first_place():
-    try:
-        #request range from spreadsheet. Requests first row of the results for each tournament
-        sheet = service.spreadsheets()
-        result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!I15:AW15").execute())
-
-        #transfer result to usable values
-        values = result.get("values", [])
-
-        #every 4th is actually a first placed player, remove unneeded values
-        row = values[0]
-        names = []
-        temp = 3
-        for cell in row:
-            if temp == 3:
-                names.append(cell)
-                temp = 0
-                continue
-            temp += 1
-
-        #return trimmed first place
-        return names
-
-    except HttpError as err:
-        print(err)
-        exit()
-
-def get_second_place():
-    try:
-        #request range from spreadsheet. Requests second row of the results for each tournament
-        sheet = service.spreadsheets()
-        result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!I16:AW16").execute())
-
-        #transfer result to usable values
-        values = result.get("values", [])
-
-        #every 4th is actually a first placed player, remove unneeded values
-        row = values[0]
-        names = []
-        temp = 3
-        for cell in row:
-            if temp == 3:
-                names.append(cell)
-                temp = 0
-                continue
-            temp += 1
-
-        # return trimmed second place
-        return names
-
-    except HttpError as err:
-        print(err)
-        exit()
-
-def get_third_place():
-    try:
-        sheet = service.spreadsheets()
-        result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!I17:AW17").execute())
-        values = result.get("values", [])
-        row = values[0]
-        names = []
-        temp = 3
-        for cell in row:
-            if temp == 3:
-                names.append(cell)
-                temp = 0
-                continue
-            temp += 1
-
-        return names
-
-    except HttpError as err:
-        print(err)
-        exit()
-
 def get_best_painted():
     try:
         sheet = service.spreadsheets()
@@ -346,6 +262,42 @@ def get_sporting():
         print(err)
         exit()
 
+def get_medals():
+    medals = [[],[],[]]
+
+    sheet = service.spreadsheets()
+    result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!H:AW11").execute())
+    values = result.get("values", [])
+    i = 0
+    rank = 0
+    for _ in values:
+        for value in _:
+            match i:
+                case 0:
+                    rank = int(value)
+                    i+=1
+                    continue
+                case 1:
+                    match rank:
+                        case 1:
+                            medals[0].append(value)
+                        case 2:
+                            medals[1].append(value)
+                        case 3:
+                            medals[2].append(value)
+                    rank = 0
+                    i+=1
+                    continue
+                case 2:
+                    i+=1
+                    continue
+                case 3:
+                    i = 0
+                    continue
+    return medals
+
+
+
 def read_keys(file):
     global SHEETKEY
     global DISCORDKEY
@@ -359,7 +311,6 @@ def read_keys(file):
 
     #close file like a good boy
     f.close()
-
 
 if __name__ == "__main__":
     #load in api keys
