@@ -1,63 +1,40 @@
+from pydoc import describe
+
 import discord
+from discord import app_commands
+from discord.ext import commands
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
-SPREADSHEET_ID = "1ZbQFYlnaQXHkEx_pggJHVorrhI7CT2ztiwP3eT6AOWE" #2025 master sheet ID
+SPREADSHEET_ID = "" #Will be loaded from file
 RANGE_NAME = "A7:G" # Range of player list
 SHEETKEY = "" #Will be loaded in from text file
 DISCORDKEY = "" #Will be loaded in from text file
-
+RESULTSHEET = "'2026 Results'!"
 
 #Set discord intents. Only message_content currently needed.
+
 intents = discord.Intents.default()
 intents.message_content = True
 
 #prepare discord client
-client = discord.Client(intents=intents)
+client = commands.Bot(intents=intents, command_prefix="$")
 
 
 #Event gets called on startup
 @client.event
 async def on_ready():
+    synched = await client.tree.sync()
+    print(len(synched))
     print(f'We have logged in as {client.user}')
 
-#Event gets called when a message is recieved
-@client.event
-async def on_message(message):
-
-    #if message was sent by bot, ignore it.
-    if message.author == client.user:
-        return
-
-    #permission control, if message sender has TO or Admin role allow restricted commands
-    permissions = False
-    for role in message.author.roles:
-        if role.name == "Tournament Organiser" or role.name == "Admin":
-            permissions = True
-            break
-
-    #command $update, restricted
-    if message.content.startswith('$update'.casefold()) & permissions:
-        await update_rankings(message)
-
-    #command $ranking, unrestricted
-    if message.content.startswith('$ranking '.casefold()):
-        await find_rank(message)
-
-
-    #command $who_is, unrestricted
-    if message.content.startswith('$who_is '.casefold()):
-        await who_is(message)
-
-
-#Function called when $who_is is sent
-async def who_is(message):
-    #message beyond command
-    rank = message.content[8:]
-
+@client.tree.command(name = "whois", description="Gives the name of the player on the rank given")
+@app_commands.describe(rank = "rank to look up")
+@app_commands.guild_only
+async def who_is(interaction : discord.Interaction, rank: int):
     #get all players
     players = get_list()
 
@@ -71,32 +48,36 @@ async def who_is(message):
             final += player[2] + "\n"
 
     #send final message
-    await message.channel.send(final)
+    await interaction.response.send_message(final)
 
-#Function called when $ranking is sent
-async def find_rank(message):
-    # message beyond command
-    name = message.content[9:]
+@client.tree.command(name = "findrank", description="Gives the rank of the player given")
+@app_commands.describe(name = "player to look up")
+@app_commands.guild_only
+async def find_rank(interaction: discord.Interaction, name : str):
 
     # get all players
     players = get_list()
 
     #look through players for requested name
+
     for player in players:
         if player[2].casefold() == name.casefold():
             #when name is found, send message.
-            await message.channel.send(name + " is currently ranked " + player[0] + " with " + player[3] + " League points")
+            await interaction.response.send_message(name + " is currently ranked " + player[0] + " with " + player[3] + " League points")
             return
 
     #if name not in sheet log and respond that person wasn't found
     print("person not found")
-    await message.channel.send("This person could not be found.")
+    await interaction.response.send_message("This person could not be found.")
 
 
 #function when $update is sent
-async def update_rankings(message):
+@client.tree.command(description="Update ranking display", name="update")
+@app_commands.guild_only
+@app_commands.default_permissions(discord.Permissions(administrator = True))
+async def update(interaction: discord.Interaction):
     #get channel where ranking was requested
-    channel = message.channel
+    channel = interaction.channel
     #Messages stored in txt file with channel id as name
     filename = str(channel.id) + ".txt"
 
@@ -104,19 +85,14 @@ async def update_rankings(message):
     try:
         f = open(filename, "r")
         i = int(f.readline().strip())
-        for _ in range(i):
+        for j in range(i):
             mes_id = f.readline().strip()
             temp = await channel.fetch_message(int(mes_id))
             await temp.delete()
+
         f.close()
     except IOError:
         print("no such file yet")
-
-    #to keep track of the messages sent in this update
-    sent_messages = []
-
-    #remove $update command
-    await message.delete()
 
     medals = get_medals()
     #get all players that won best painted
@@ -126,6 +102,8 @@ async def update_rankings(message):
 
     #message to contain message to be sent
     rankings = ""
+    #list to get around character limits
+    messages = []
 
     #get list of players
     players = get_list()
@@ -176,27 +154,26 @@ async def update_rankings(message):
         #newline before next player
         rankings += "\n"
 
-        #if near message character send message
+        #avoid character limit
         if len(rankings) >= 1900:
-            new_mes = await message.channel.send(rankings)
 
-            #save sent message for writing to file
-            sent_messages.append(new_mes)
+            #set built message into list
+            messages.append(rankings)
 
-            #reset message content for next message to be sent
+            #reset working string for refilling
             rankings = ""
 
-    #send rankings
-    new_mes = await message.channel.send(rankings)
 
-    #save sent message for writing to file
-    sent_messages.append(new_mes)
+    #await interaction.message.delete()
 
-    #write message ids to file
+    #send rankings and save ids to file for deletion
     g = open(filename, "w")
-    g.write(str(len(sent_messages)) + "\n")
-    for mes in sent_messages:
-        g.write(str(mes.id) + "\n")
+    g.write(str(len(messages)))
+    g.write("\n")
+
+    for i in messages:
+        g.write(str((await interaction.channel.send(i)).id))
+        g.write("\n")
     g.close()
 
 
@@ -223,7 +200,7 @@ def get_list():
 def get_best_painted():
     try:
         sheet = service.spreadsheets()
-        result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!I10:AW10").execute())
+        result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range=RESULTSHEET + "I10:AW10").execute())
         values = result.get("values", [])
         row = values[0]
         names = []
@@ -244,7 +221,7 @@ def get_best_painted():
 def get_sporting():
     try:
         sheet = service.spreadsheets()
-        result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!I11:AW11").execute())
+        result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range=RESULTSHEET + "I11:AW11").execute())
         values = result.get("values", [])
         row = values[0]
         names = []
@@ -266,7 +243,7 @@ def get_medals():
     medals = [[],[],[]]
 
     sheet = service.spreadsheets()
-    result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range="'2025 Results'!H15:AW21").execute())
+    result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range=RESULTSHEET + "H15:AW21").execute())
     values = result.get("values", [])
     print (values)
     rank = 0
@@ -302,13 +279,16 @@ def get_medals():
 def read_keys(file):
     global SHEETKEY
     global DISCORDKEY
+    global SPREADSHEET_ID
 
     #open keyfile
     f = open(file, "r")
 
     #set keys, as read from file
     SHEETKEY = f.readline().strip()
-    DISCORDKEY = f.readline()
+    DISCORDKEY = f.readline().strip()
+    SPREADSHEET_ID = f.readline().strip()
+
 
     #close file like a good boy
     f.close()
