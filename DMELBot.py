@@ -163,13 +163,14 @@ async def update(interaction: discord.Interaction):
             #reset working string for refilling
             rankings = ""
 
-
-    #await interaction.message.delete()
+    messages.append(rankings)
 
     #send rankings and save ids to file for deletion
     g = open(filename, "w")
     g.write(str(len(messages)))
     g.write("\n")
+
+    print(messages)
 
     for i in messages:
         g.write(str((await interaction.channel.send(i)).id))
@@ -245,7 +246,6 @@ def get_medals():
     sheet = service.spreadsheets()
     result = (sheet.values().get(spreadsheetId=SPREADSHEET_ID,range=RESULTSHEET + "H15:AW21").execute())
     values = result.get("values", [])
-    print (values)
     rank = 0
     for _ in values:
         i=0
