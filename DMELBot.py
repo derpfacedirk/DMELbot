@@ -107,7 +107,7 @@ async def find_rank(interaction: discord.Interaction, name : str):
 #function when $update is sent
 @client.tree.command(description="Update ranking display", name="update")
 @app_commands.guild_only
-@app_commands.default_permissions(discord.Permissions(administrator = True))
+@app_commands.default_permissions(discord.Permissions(manage_messages = True))
 async def update(interaction: discord.Interaction):
     #get channel where ranking was requested
     channel = interaction.channel
