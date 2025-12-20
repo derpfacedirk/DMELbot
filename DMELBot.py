@@ -72,7 +72,7 @@ async def who_is(interaction : discord.Interaction, rank: int):
     players = get_list()
 
     #setup response message
-    final = "The player(s) ranked " + rank + " are:\n"
+    final = "The player(s) ranked " + str(rank) + " are:\n"
 
     #look for message argument in player list
     for player in players:
